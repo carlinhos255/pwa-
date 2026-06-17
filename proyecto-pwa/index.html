@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aplicación de relevamiento en campo con OCR y geolocalización.">
+    <title>Proyecto PWA</title>
+
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#f3f4f6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fieldmap">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+    <main class="container main-grid">
+
+        <div class="status-bar-minimal">
+            <div class="net-badge" id="network-status">
+                <span class="net-dot online" id="net-dot"></span>
+                <span class="net-label" id="net-label">ONLINE</span>
+            </div>
+            <button class="install-trigger hidden" id="install-btn">
+                <i class="fa-solid fa-download"></i> Instalar App
+            </button>
+        </div>
+
+        <section class="panel" id="panel-ocr">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <h2>Captura OCR</h2>
+                </div>
+                <span class="panel-status" id="ocr-status-badge">INACTIVO</span>
+            </div>
+
+            <div class="btn-row">
+                <button class="field-btn primary" id="btn-open-camera">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Activar Cámara</span>
+                </button>
+                <label class="field-btn secondary" for="file-input">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Cargar Imagen</span>
+                </label>
+                <input type="file" id="file-input" accept="image/*" hidden>
+            </div>
+
+            <div class="camera-overlay hidden" id="camera-modal">
+                <div class="camera-panel">
+                    <div class="camera-topbar">
+                        <div class="cam-status-row">
+                            <span class="cam-rec-dot"></span>
+                            <span class="mono">CÁMARA EN VIVO</span>
+                        </div>
+                        <button class="icon-close" id="btn-close-camera" title="Cerrar cámara">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="video-frame">
+                        <video id="camera-stream" autoplay playsinline muted></video>
+                        <div class="reticle">
+                            <div class="r-corner tl"></div>
+                            <div class="r-corner tr"></div>
+                            <div class="r-corner bl"></div>
+                            <div class="r-corner br"></div>
+                        </div>
+                    </div>
+                    <div class="camera-footer">
+                        <button class="field-btn primary btn-full" id="btn-capture-frame">
+                            <i class="fa-solid fa-circle-dot"></i>
+                            <span>Capturar Fotograma</span>
+                        </button>
+                    </div>
+                    <canvas id="camera-canvas" hidden></canvas>
+                </div>
+            </div>
+
+            <div class="img-preview hidden" id="preview-container">
+                <div class="preview-header">
+                    <span class="mono text-muted">IMAGEN CARGADA</span>
+                    <button class="text-btn" id="btn-change-img">Cambiar</button>
+                </div>
+                <img id="image-preview" src="" alt="Vista previa">
+                <button class="field-btn danger btn-full mt-sm" id="btn-process-ocr">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>Procesar con OCR</span>
+                </button>
+            </div>
+
+            <div class="ocr-progress hidden" id="progress-container">
+                <div class="progress-meta">
+                    <span class="mono text-muted">PROCESANDO</span>
+                    <span class="mono" id="progress-text">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-bar" id="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="result-block hidden" id="result-container">
+                <div class="result-header">
+                    <span class="mono text-accent">TEXTO RECONOCIDO</span>
+                    <div class="result-actions">
+                        <button class="icon-btn" id="btn-copy" title="Copiar texto">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                        <button class="icon-btn" id="btn-download" title="Descargar .TXT">
+                            <i class="fa-solid fa-download"></i>
+                        </button>
+                        <button class="icon-btn danger" id="btn-clear" title="Limpiar">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+                <textarea id="ocr-result" rows="7" spellcheck="false" readonly placeholder="El texto reconocido aparecerá aquí..."></textarea>
+            </div>
+
+            <div class="alert-error hidden" id="ocr-error" role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span id="ocr-error-msg"></span>
+            </div>
+        </section>
+
+        <div class="right-col">
+
+            <section class="panel" id="panel-geo">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <h2>Geolocalización</h2>
+                    </div>
+                    <span class="panel-status" id="geo-status-badge">INACTIVO</span>
+                </div>
+
+                <button class="field-btn primary btn-full" id="btn-get-location">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                    <span>Obtener Coordenadas GPS</span>
+                </button>
+
+                <div class="coords-grid hidden" id="geo-details">
+                    <div class="coord-card">
+                        <span class="coord-label mono">LAT</span>
+                        <span class="coord-value mono" id="geo-lat">—</span>
+                    </div>
+                    <div class="coord-card">
+                        <span class="coord-label mono">LNG</span>
+                        <span class="coord-value mono" id="geo-lng">—</span>
+                    </div>
+                    <div class="coord-card">
+                        <span class="coord-label mono">PRECISIÓN</span>
+                        <span class="coord-value mono" id="geo-acc">—</span>
+                    </div>
+                    <div class="coord-card">
+                        <span class="coord-label mono">HORA</span>
+                        <span class="coord-value mono" id="geo-time">—</span>
+                    </div>
+                </div>
+
+                <div class="alert-error hidden" id="geo-error" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="geo-error-msg"></span>
+                </div>
+
+                <div class="map-wrap" id="map">
+                    <div class="map-empty" id="map-placeholder">
+                        <i class="fa-solid fa-map-pin"></i>
+                        <span class="mono">ESPERANDO SEÑAL GPS</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-hist">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <h2>Historial</h2>
+                    </div>
+                    <button class="text-btn danger" id="btn-clear-history">
+                        <i class="fa-solid fa-eraser"></i> Borrar
+                    </button>
+                </div>
+
+                <div class="tab-row">
+                    <button class="tab active" data-tab="hist-ocr">
+                        <i class="fa-solid fa-font"></i> OCR
+                    </button>
+                    <button class="tab" data-tab="hist-geo">
+                        <i class="fa-solid fa-location-dot"></i> Ubicaciones
+                    </button>
+                </div>
+
+                <div class="tab-pane active" id="hist-ocr">
+                    <ul class="hist-list" id="ocr-history-list">
+                        <li class="hist-empty">Sin registros OCR</li>
+                    </ul>
+                </div>
+                <div class="tab-pane" id="hist-geo">
+                    <ul class="hist-list" id="geo-history-list">
+                        <li class="hist-empty">Sin registros GPS</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </main>
+
+
+    <div class="toast hidden" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script src="./js/storage.js"></script>
+    <script src="./js/map.js"></script>
+    <script src="./js/geolocation.js"></script>
+    <script src="./js/ocr.js"></script>
+    <script src="./app.js"></script>
+
+</body>
+</html>

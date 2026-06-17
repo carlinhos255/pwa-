@@ -1,0 +1,20 @@
+{
+    "id": "/",
+    "name": "Proyecto PWA",
+    "short_name": "Proyecto PWA",
+    "description": "Aplicación de relevamiento en campo con OCR y geolocalización.",
+    "lang": "es",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#0a0e1a",
+    "theme_color": "#0a0e1a",
+    "categories": [
+        "utilities",
+        "productivity"
+    ],
+    "icons": [],
+    "screenshots": [],
+    "prefer_related_applications": false
+}
